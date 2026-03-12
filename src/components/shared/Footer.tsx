@@ -1,10 +1,10 @@
 import { Link } from 'react-router-dom';
 import { Twitter, Instagram, Linkedin, Github } from 'lucide-react';
 
-const footerLinks = {
+const footerLinks: Record<string, string[]> = {
   Product: ['Explore Cars', 'How it Works', 'Pricing', 'Safety'],
   Company: ['About Us', 'Careers', 'Press', 'Contact'],
-  For Owners: ['List Your Car', 'Owner Resources', 'Insurance', 'Earnings'],
+  'For Owners': ['List Your Car', 'Owner Resources', 'Insurance', 'Earnings'],
   Support: ['Help Center', 'Community', 'Privacy Policy', 'Terms of Service'],
 };
 
