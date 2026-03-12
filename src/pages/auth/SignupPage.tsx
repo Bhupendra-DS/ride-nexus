@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { demoUsers, UserRole } from '@/store/authStore';
+import { UserRole } from '@/store/authStore';
+import { signupUser } from '@/services/authService';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
 
 export default function SignupPage() {
@@ -18,17 +19,23 @@ export default function SignupPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Demo: create a mock user based on role
-    const user = {
-      id: `${role}-${Date.now()}`,
-      name: name || demoUsers[role].name,
-      email: email || demoUsers[role].email,
-      role,
-    };
-    login(user);
-    navigate(role === 'owner' ? '/owner/dashboard' : '/dashboard');
+
+    try {
+      const createdUser = await signupUser(name, email, password, role);
+
+      login({
+        id: createdUser.uid,
+        name,
+        email,
+        role,
+      });
+
+      navigate(role === 'owner' ? '/owner/dashboard' : '/dashboard');
+    } catch (error) {
+      console.error((error as Error).message);
+    }
   };
 
   return (

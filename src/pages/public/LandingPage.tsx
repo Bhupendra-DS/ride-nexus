@@ -13,6 +13,9 @@ import { HeroScene } from '@/components/three/HeroScene';
 import { mockCars } from '@/lib/mockData';
 import { Car as CarType } from '@/components/shared/CarCard';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
+import { useAuth } from '@/hooks/useAuth';
+import { formatCurrency } from '@/utils/formatCurrency';
+import { FAQSection } from '@/components/shared/FAQSection';
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -38,7 +41,7 @@ const testimonials = [
 ];
 
 const features = [
-  { icon: Shield, title: 'Fully Insured', desc: 'Every trip includes comprehensive coverage with up to $1M liability protection.' },
+  { icon: Shield, title: 'Fully Insured', desc: 'Every trip includes comprehensive coverage with high liability protection.' },
   { icon: Zap, title: 'Instant Booking', desc: 'Reserve your dream car in under 60 seconds with our frictionless booking flow.' },
   { icon: Star, title: 'Curated Fleet', desc: 'Every vehicle is inspected, verified, and rated by our community of discerning drivers.' },
   { icon: Users, title: 'Trusted Community', desc: 'Verified owners and renters with transparent reviews and identity checks.' },
@@ -57,6 +60,7 @@ export default function LandingPage() {
   const carouselRef = useRef<HTMLDivElement>(null);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [selectedCar, setSelectedCar] = useState<CarType | null>(null);
+  const { isLoggedIn, user } = useAuth();
 
   const { scrollYProgress } = useScroll({ target: heroRef });
   const heroOpacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
@@ -180,7 +184,7 @@ export default function LandingPage() {
             {[
               { label: 'Verified Cars', value: '2,400+' },
               { label: 'Happy Renters', value: '18k+' },
-              { label: 'Cities', value: '120+' },
+              { label: 'Cities', value: '+120' },
               { label: 'Avg. Rating', value: '4.9★' },
             ].map((stat) => (
               <div key={stat.label} className="text-center">
@@ -239,7 +243,17 @@ export default function LandingPage() {
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
             >
               {carouselCars.slice(carouselIndex, carouselIndex + visibleCount).map((car) => (
-                <CarCard key={car.id} car={car} onBook={setSelectedCar} />
+                <CarCard
+                  key={car.id}
+                  car={car}
+                  onBook={() => {
+                    if (!isLoggedIn || user?.role !== 'user') {
+                      navigate('/login');
+                    } else {
+                      setSelectedCar(car);
+                    }
+                  }}
+                />
               ))}
             </motion.div>
           </div>
@@ -288,7 +302,7 @@ export default function LandingPage() {
                 Your premium vehicle sits unused most of the time. List it on RideNexus and earn while a curated community of trusted renters enjoy it.
               </p>
               <div className="space-y-4 mb-8">
-                {['Set your own price and availability', 'Protected by $1M insurance coverage', 'Verified renters with full background checks', 'Avg. owner earns $1,200/month'].map((item, i) => (
+              {['Set your own price and availability', 'Protected by comprehensive insurance', 'Verified renters with full background checks', 'Avg. owner earns ₹1,20,000/month'].map((item, i) => (
                   <div key={i} className="flex items-center gap-3">
                     <div className="w-5 h-5 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center flex-shrink-0">
                       <Check size={11} className="text-primary" />
@@ -322,7 +336,7 @@ export default function LandingPage() {
                 transition={{ duration: 3, repeat: Infinity }}
               >
                 <p className="label-caps text-muted-foreground mb-1">Monthly Earnings</p>
-                <p className="font-display font-bold text-2xl tabular-nums text-primary">$1,847</p>
+                <p className="font-display font-bold text-2xl tabular-nums text-primary">{formatCurrency(184700)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">↑ 23% from last month</p>
               </motion.div>
             </div>
@@ -387,7 +401,9 @@ export default function LandingPage() {
                 )}
                 <h3 className="font-display font-bold text-lg mb-2">{tier.name}</h3>
                 <div className="mb-6">
-                  <span className="font-display font-bold text-4xl tabular-nums">${tier.price}</span>
+                  <span className="font-display font-bold text-4xl tabular-nums">
+                    {formatCurrency(tier.price * 100)}
+                  </span>
                   <span className="text-muted-foreground text-sm">/month</span>
                 </div>
                 <ul className="space-y-3 mb-6">
@@ -409,6 +425,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* FAQ section */}
+      <FAQSection />
 
       {/* CTA banner */}
       <section className="py-24">
@@ -436,7 +455,7 @@ export default function LandingPage() {
 
       <Footer />
 
-      {/* Booking Modal */}
+      {/* Booking Modal (not used from landing Book Now anymore, kept for future if needed) */}
       {selectedCar && (
         <BookingModal car={selectedCar} onClose={() => setSelectedCar(null)} />
       )}

@@ -1,7 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { LayoutDashboard, Car, Calendar, DollarSign, User, Plus, X, Upload } from 'lucide-react';
 import { DashboardLayout } from '@/components/layout/DashboardLayout';
-import { mockCars, mockBookings } from '@/lib/mockData';
 import { CarCard } from '@/components/shared/CarCard';
 import { useAuth } from '@/hooks/useAuth';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -10,6 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { createCarListing, subscribeOwnerCars } from '@/services/carService';
+import { formatCurrency } from '@/utils/formatCurrency';
+import { db } from '@/services/firebase';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
 
 const navItems = [
   { label: 'Dashboard', href: '/owner/dashboard', icon: <LayoutDashboard size={16} /> },
@@ -19,7 +22,13 @@ const navItems = [
   { label: 'Profile', href: '/owner/profile', icon: <User size={16} /> },
 ];
 
-const AddCarModal = ({ onClose }: { onClose: () => void }) => {
+const AddCarModal = ({
+  onClose,
+  ownerId,
+}: {
+  onClose: () => void;
+  ownerId: string;
+}) => {
   const [form, setForm] = useState({
     brand: '', model: '', city: '', seats: '5',
     fuelType: 'Electric', transmission: 'Automatic', pricePerHour: '',
@@ -58,13 +67,12 @@ const AddCarModal = ({ onClose }: { onClose: () => void }) => {
 
           <div className="grid grid-cols-2 gap-4">
             {[
-              { key: 'brand', label: 'Brand', placeholder: 'e.g. Tesla' },
-              { key: 'model', label: 'Model', placeholder: 'e.g. Model S' },
-              { key: 'city', label: 'City', placeholder: 'e.g. San Francisco' },
+              { key: 'brand', label: 'Brand', placeholder: 'e.g. Tata' },
+              { key: 'model', label: 'Model', placeholder: 'e.g. Nexon' },
               { key: 'seats', label: 'Seats', placeholder: '5' },
-              { key: 'pricePerHour', label: 'Price / Hour ($)', placeholder: '85' },
+              { key: 'pricePerHour', label: 'Price / Hour (₹)', placeholder: '350' },
             ].map(({ key, label, placeholder }) => (
-              <div key={key} className={key === 'city' ? 'col-span-2' : ''}>
+              <div key={key}>
                 <Label className="label-caps text-muted-foreground mb-2 block">{label}</Label>
                 <Input
                   placeholder={placeholder}
@@ -74,6 +82,23 @@ const AddCarModal = ({ onClose }: { onClose: () => void }) => {
                 />
               </div>
             ))}
+
+            {/* City dropdown limited to Maharashtra cities */}
+            <div className="col-span-2">
+              <Label className="label-caps text-muted-foreground mb-2 block">City</Label>
+              <select
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+                className="w-full h-11 px-4 bg-input rounded-lg text-sm text-foreground border-0 focus:ring-2 focus:ring-ring outline-none"
+              >
+                <option value="">Select city</option>
+                <option value="Mumbai">Mumbai (financial capital)</option>
+                <option value="Pune">Pune (education hub)</option>
+                <option value="Nagpur">Nagpur (orange city)</option>
+                <option value="Nashik">Nashik (wine capital)</option>
+                <option value="Aurangabad">Aurangabad (tourism hub)</option>
+              </select>
+            </div>
 
             <div>
               <Label className="label-caps text-muted-foreground mb-2 block">Fuel Type</Label>
@@ -99,7 +124,13 @@ const AddCarModal = ({ onClose }: { onClose: () => void }) => {
           </div>
 
           <motion.div {...buttonHover} className="mt-6">
-            <Button className="w-full h-11 bg-primary text-primary-foreground font-semibold shadow-glow" onClick={onClose}>
+            <Button
+              className="w-full h-11 bg-primary text-primary-foreground font-semibold shadow-glow"
+              onClick={async () => {
+                await createCarListing(ownerId, form);
+                onClose();
+              }}
+            >
               Submit for Approval
             </Button>
           </motion.div>
@@ -112,10 +143,39 @@ const AddCarModal = ({ onClose }: { onClose: () => void }) => {
 export default function OwnerDashboard() {
   const { user } = useAuth();
   const [showAddCar, setShowAddCar] = useState(false);
+  const [ownerCars, setOwnerCars] = useState<any[]>([]);
+  const [ownerBookings, setOwnerBookings] = useState<any[]>([]);
 
-  const ownerCars = mockCars.slice(0, 3);
-  const ownerBookings = mockBookings.slice(0, 3);
-  const totalEarnings = ownerBookings.reduce((sum, b) => sum + b.total, 0);
+  useEffect(() => {
+    if (!user?.id) return;
+    const unsubscribe = subscribeOwnerCars(user.id, setOwnerCars);
+    return () => unsubscribe();
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    const q = query(collection(db, 'bookings'), where('ownerId', '==', user.id));
+    const unsub = onSnapshot(q, (snap) => {
+      const data = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+      setOwnerBookings(data);
+    });
+    return () => unsub();
+  }, [user?.id]);
+
+  const activeCars = ownerCars.filter((c) => c.status === 'approved').length;
+  const totalBookings = ownerBookings.length;
+  const totalEarnings = ownerBookings.reduce(
+    (sum, b) => (b.status === 'approved' ? sum + (b.totalPrice || 0) : sum),
+    0,
+  );
+
+  const recentOwnerBookings = [...ownerBookings]
+    .sort(
+      (a, b) =>
+        ((b.createdAt?.toMillis?.() as number) || 0) -
+        ((a.createdAt?.toMillis?.() as number) || 0),
+    )
+    .slice(0, 3);
 
   return (
     <DashboardLayout navItems={navItems} title="Owner Dashboard">
@@ -139,11 +199,11 @@ export default function OwnerDashboard() {
         {/* Stats */}
         <motion.div variants={fadeInUp} className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'Total Earnings', value: `$${totalEarnings.toLocaleString()}`, sub: 'All time' },
-            { label: 'Active Cars', value: '3', sub: 'In fleet' },
-            { label: 'Total Bookings', value: '28', sub: 'This month' },
+            { label: 'Total Earnings', value: formatCurrency(totalEarnings), sub: 'All time' },
+            { label: 'Active Cars', value: activeCars, sub: 'Approved' },
+            { label: 'Total Bookings', value: totalBookings, sub: 'All time' },
             { label: 'Avg. Rating', value: '4.9', sub: 'From renters' },
-          ].map((stat, i) => (
+          ].map((stat: { label: string; value: string | number; sub: string }, i) => (
             <div key={i} className="bg-card rounded-xl p-4 shadow-md">
               <p className="label-caps text-muted-foreground mb-2">{stat.label}</p>
               <p className="font-display font-bold text-3xl tabular-nums text-primary">{stat.value}</p>
@@ -162,7 +222,8 @@ export default function OwnerDashboard() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
             {ownerCars.map((car) => (
-              <CarCard key={car.id} car={car} showStatus />
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              <CarCard key={car.id} car={car as any} showStatus />
             ))}
           </div>
         </motion.div>
@@ -183,12 +244,14 @@ export default function OwnerDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {ownerBookings.map((b) => (
+                  {recentOwnerBookings.map((b) => (
                     <tr key={b.id} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
                       <td className="px-4 py-3 text-sm font-medium">{b.userName}</td>
-                      <td className="px-4 py-3 text-sm text-muted-foreground">{b.car.brand} {b.car.model}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{b.carName}</td>
                       <td className="px-4 py-3 text-sm text-muted-foreground">{b.startDate} → {b.endDate}</td>
-                      <td className="px-4 py-3 text-sm font-bold tabular-nums text-primary">${b.total.toLocaleString()}</td>
+                      <td className="px-4 py-3 text-sm font-bold tabular-nums text-primary">
+                        {formatCurrency(b.totalPrice)}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge
                           className={`label-caps text-[10px] ${
@@ -209,7 +272,9 @@ export default function OwnerDashboard() {
         </motion.div>
       </motion.div>
 
-      {showAddCar && <AddCarModal onClose={() => setShowAddCar(false)} />}
+      {showAddCar && user?.id && (
+        <AddCarModal onClose={() => setShowAddCar(false)} ownerId={user.id} />
+      )}
     </DashboardLayout>
   );
 }

@@ -3,6 +3,7 @@ import { Star, MapPin, Fuel, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { buttonHover, cardHover } from '@/lib/motion';
+import { formatCurrency } from '@/utils/formatCurrency';
 
 export interface Car {
   id: string;
@@ -45,7 +46,7 @@ export const CarCard = ({ car, onBook, showStatus = false }: CarCardProps) => {
         <div className="absolute top-3 right-3">
           <div className="glass rounded-lg px-3 py-1">
             <span className="tabular-nums font-display font-bold text-primary text-sm">
-              ${car.pricePerHour}
+              {formatCurrency(car.pricePerHour)}
             </span>
             <span className="text-xs text-muted-foreground">/hr</span>
           </div>

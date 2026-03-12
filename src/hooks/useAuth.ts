@@ -1,7 +1,10 @@
 import { useAuthStore } from '@/store/authStore';
 
 export const useAuth = () => {
-  const { user, isLoggedIn, login, logout } = useAuthStore();
+  const { user, isLoggedIn, initialized, login, logout } = useAuthStore();
+
+  // Treat user as logged in only after Firebase auth has been checked at least once.
+  const effectiveLoggedIn = initialized && isLoggedIn;
 
   const getDashboardPath = () => {
     if (!user) return '/login';
@@ -13,5 +16,5 @@ export const useAuth = () => {
     }
   };
 
-  return { user, isLoggedIn, login, logout, getDashboardPath };
+  return { user, isLoggedIn: effectiveLoggedIn, login, logout, getDashboardPath };
 };

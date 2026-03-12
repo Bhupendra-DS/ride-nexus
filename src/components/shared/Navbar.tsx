@@ -4,11 +4,15 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 const navLinks = [
   { label: 'Explore Cars', href: '/explore' },
   { label: 'How it Works', href: '/#how-it-works' },
   { label: 'For Owners', href: '/#for-owners' },
+  { label: 'FAQ', href: '/#faq' },
+  { label: 'About Us', href: '/about' },
+  { label: 'Contact Us', href: '/contact' },
 ];
 
 export const Navbar = () => {
@@ -23,6 +27,20 @@ export const Navbar = () => {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
+
+  const handleAnchorNav = (e: React.MouseEvent, href: string) => {
+    if (!href.startsWith('/#')) return;
+    e.preventDefault();
+    const id = href.split('#')[1];
+    if (location.pathname === '/') {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth' });
+      }
+    } else {
+      navigate(href);
+    }
+  };
 
   return (
     <>
@@ -51,6 +69,7 @@ export const Navbar = () => {
               <Link
                 key={link.href}
                 to={link.href}
+                onClick={(e) => handleAnchorNav(e, link.href)}
                 className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors duration-200"
               >
                 {link.label}
@@ -58,7 +77,7 @@ export const Navbar = () => {
             ))}
           </div>
 
-          {/* Desktop Auth */}
+          {/* Desktop Auth + Theme */}
           <div className="hidden md:flex items-center gap-3">
             {isLoggedIn ? (
               <>
@@ -100,6 +119,7 @@ export const Navbar = () => {
                 </motion.div>
               </>
             )}
+            <ThemeToggle />
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -135,7 +155,10 @@ export const Navbar = () => {
                     key={link.href}
                     to={link.href}
                     className="flex items-center justify-between px-4 py-3 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                    onClick={() => setMobileOpen(false)}
+                    onClick={(e) => {
+                      handleAnchorNav(e, link.href);
+                      setMobileOpen(false);
+                    }}
                   >
                     {link.label}
                     <ChevronRight size={16} />

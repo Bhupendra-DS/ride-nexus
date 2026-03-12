@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { demoUsers } from '@/store/authStore';
+import { loginUser, getUserRole } from '@/services/authService';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
 
 export default function LoginPage() {
@@ -17,32 +17,37 @@ export default function LoginPage() {
   const { login, getDashboardPath } = useAuth();
   const navigate = useNavigate();
 
-  const demoAccounts = [
-    { label: 'Admin', email: 'admin@ridenexus.com', password: 'demo', user: demoUsers.admin },
-    { label: 'Owner', email: 'owner@ridenexus.com', password: 'demo', user: demoUsers.owner },
-    { label: 'User', email: 'user@ridenexus.com', password: 'demo', user: demoUsers.user },
-  ];
-
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const account = demoAccounts.find((a) => a.email === email);
-    if (account && password === 'demo') {
-      login(account.user);
-      navigate(
-        account.user.role === 'admin' ? '/admin/dashboard' :
-        account.user.role === 'owner' ? '/owner/dashboard' : '/dashboard'
-      );
-    } else {
-      setError('Invalid credentials. Try the demo accounts below.');
-    }
-  };
+    setError('');
+    try {
+      const user = await loginUser(email, password);
+      console.log("Logged in UID:", user.uid);
+      const role = await getUserRole(user.uid);
+      console.log("Fetched role:", role);
 
-  const handleDemoLogin = (account: typeof demoAccounts[0]) => {
-    login(account.user);
-    navigate(
-      account.user.role === 'admin' ? '/admin/dashboard' :
-      account.user.role === 'owner' ? '/owner/dashboard' : '/dashboard'
-    );
+      if (!role) {
+        setError('Unable to determine user role.');
+        return;
+      }
+
+      login({
+        id: user.uid,
+        name: user.displayName || 'User',
+        email: user.email || email,
+        role,
+      });
+
+      if (role === 'admin') {
+        navigate('/admin/dashboard');
+      } else if (role === 'owner') {
+        navigate('/owner/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      setError((error as Error).message || 'Login failed.');
+    }
   };
 
   return (
@@ -148,32 +153,6 @@ export default function LoginPage() {
               </Button>
             </motion.div>
           </motion.form>
-
-          {/* Demo accounts */}
-          <motion.div variants={fadeInUp} className="mt-8">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="flex-1 h-px bg-border/50" />
-              <span className="label-caps text-muted-foreground">Demo Accounts</span>
-              <div className="flex-1 h-px bg-border/50" />
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {demoAccounts.map((acc) => (
-                <motion.button
-                  key={acc.label}
-                  onClick={() => handleDemoLogin(acc)}
-                  className="p-3 rounded-xl bg-muted hover:bg-muted/80 border border-border/50 text-center transition-colors duration-200"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <p className="font-semibold text-sm">{acc.label}</p>
-                  <p className="label-caps text-muted-foreground text-[10px] mt-0.5">{acc.user.role}</p>
-                </motion.button>
-              ))}
-            </div>
-            <p className="text-xs text-muted-foreground text-center mt-3">
-              Password for all demo accounts: <code className="text-primary">demo</code>
-            </p>
-          </motion.div>
 
           <motion.p variants={fadeInUp} className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{' '}

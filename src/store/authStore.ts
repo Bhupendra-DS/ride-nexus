@@ -14,6 +14,7 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null;
   isLoggedIn: boolean;
+  initialized: boolean;
   login: (user: AuthUser) => void;
   logout: () => void;
 }
@@ -44,11 +45,17 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       isLoggedIn: false,
-      login: (user) => set({ user, isLoggedIn: true }),
-      logout: () => set({ user: null, isLoggedIn: false }),
+      initialized: false,
+      login: (user) => set({ user, isLoggedIn: true, initialized: true }),
+      logout: () => set({ user: null, isLoggedIn: false, initialized: true }),
     }),
     {
       name: 'ridenexus-auth',
+      // Don't persist internal initialization flag
+      partialize: (state) => ({
+        user: state.user,
+        isLoggedIn: state.isLoggedIn,
+      }),
     }
   )
 );

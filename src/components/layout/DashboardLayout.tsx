@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { ThemeToggle } from '@/components/shared/ThemeToggle';
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -19,10 +20,10 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Top bar */}
+      {/* Top bar with horizontal nav (classic style) */}
       <header className="sticky top-0 z-40 h-16 nav-blur flex items-center justify-between px-6">
-        <div className="flex items-center gap-4">
-          <Link to="/" className="flex items-center gap-2 mr-4">
+        <div className="flex items-center gap-6">
+          <Link to="/" className="flex items-center gap-2 mr-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
               <span className="font-display font-bold text-sm text-primary-foreground">RN</span>
             </div>
@@ -30,10 +31,32 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
               Ride<span className="text-gradient-primary">Nexus</span>
             </span>
           </Link>
-          <div className="h-6 w-px bg-border/50" />
-          <span className="label-caps text-muted-foreground">{title}</span>
+          <span className="label-caps text-muted-foreground hidden sm:inline">{title}</span>
+          {/* Desktop dashboard nav */}
+          <nav className="hidden md:flex items-center gap-1 ml-4">
+            {navItems.map((item) => {
+              const active = location.pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                    active
+                      ? 'bg-primary/10 text-primary'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+                  }`}
+                >
+                  <span className="inline-flex items-center gap-2">
+                    {item.icon}
+                    <span>{item.label}</span>
+                  </span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button className="w-9 h-9 rounded-lg bg-muted border border-border/50 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors relative">
             <Bell size={16} />
             <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full bg-primary" />
@@ -47,7 +70,10 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { logout(); navigate('/'); }}
+            onClick={() => {
+              logout();
+              navigate('/');
+            }}
             className="text-muted-foreground hover:text-foreground gap-1.5"
           >
             <LogOut size={14} />
@@ -56,48 +82,16 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
         </div>
       </header>
 
-      <div className="flex flex-1">
-        {/* Sidebar */}
-        <aside className="w-60 border-r border-border/50 bg-card/30 sticky top-16 h-[calc(100vh-4rem)] overflow-y-auto p-4 hidden md:block">
-          <nav className="space-y-1">
-            {navItems.map((item) => {
-              const active = location.pathname === item.href;
-              return (
-                <Link
-                  key={item.href}
-                  to={item.href}
-                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 relative ${
-                    active
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
-                  }`}
-                >
-                  {active && (
-                    <motion.div
-                      layoutId="active-nav"
-                      className="absolute inset-0 rounded-xl bg-primary/10"
-                      transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{item.icon}</span>
-                  <span className="relative z-10">{item.label}</span>
-                </Link>
-              );
-            })}
-          </nav>
-        </aside>
-
-        {/* Main content */}
-        <main className="flex-1 p-6 overflow-auto">
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-          >
-            {children}
-          </motion.div>
-        </main>
-      </div>
+      {/* Main content (full width under top nav) */}
+      <main className="flex-1 p-6 overflow-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          {children}
+        </motion.div>
+      </main>
 
       {/* Mobile bottom nav */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 nav-blur py-2 px-4">

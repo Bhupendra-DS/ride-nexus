@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Search, Filter, MapPin } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,11 @@ import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { CarCard } from '@/components/shared/CarCard';
 import { BookingModal } from '@/components/shared/BookingModal';
-import { mockCars } from '@/lib/mockData';
 import { Car } from '@/components/shared/CarCard';
 import { staggerContainer, fadeInUp } from '@/lib/motion';
+import { subscribeApprovedCars } from '@/services/carService';
+import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 
 const cities = ['All Cities', 'San Francisco', 'Los Angeles', 'New York', 'Miami', 'Chicago', 'Las Vegas'];
 const fuelTypes = ['All', 'Electric', 'Petrol', 'Hybrid'];
@@ -18,8 +20,16 @@ export default function ExplorePage() {
   const [selectedCity, setSelectedCity] = useState('All Cities');
   const [selectedFuel, setSelectedFuel] = useState('All');
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
+  const [cars, setCars] = useState<any[]>([]);
+  const { isLoggedIn, user } = useAuth();
+  const navigate = useNavigate();
 
-  const filtered = mockCars.filter((car) => {
+  useEffect(() => {
+    const unsubscribe = subscribeApprovedCars(setCars);
+    return () => unsubscribe();
+  }, []);
+
+  const filtered = cars.filter((car) => {
     const matchSearch = `${car.brand} ${car.model}`.toLowerCase().includes(search.toLowerCase());
     const matchCity = selectedCity === 'All Cities' || car.city === selectedCity;
     const matchFuel = selectedFuel === 'All' || car.fuelType === selectedFuel;
@@ -98,7 +108,16 @@ export default function ExplorePage() {
             >
               {filtered.map((car) => (
                 <motion.div key={car.id} variants={fadeInUp}>
-                  <CarCard car={car} onBook={setSelectedCar} />
+                  <CarCard
+                    car={car}
+                    onBook={() => {
+                      if (!isLoggedIn || user?.role !== 'user') {
+                        navigate('/login');
+                      } else {
+                        setSelectedCar(car);
+                      }
+                    }}
+                  />
                 </motion.div>
               ))}
             </motion.div>
