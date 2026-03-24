@@ -1,49 +1,68 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/hooks/useAuth';
-import { loginUser, getUserRole } from '@/services/authService';
+import { loginUser, getUserProfile } from '@/services/authService';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
+import { isSafeRedirectPath } from '@/utils/routes';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
-  const { login, getDashboardPath } = useAuth();
+  const { login, getDashboardPath, isLoggedIn, user, initialized } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (!initialized || !isLoggedIn || !user) return;
+    const redirect = searchParams.get('redirect');
+    const target = isSafeRedirectPath(redirect) ? redirect! : getDashboardPath();
+    navigate(target, { replace: true });
+  }, [initialized, isLoggedIn, user, searchParams, navigate, getDashboardPath]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     try {
-      const user = await loginUser(email, password);
-      console.log("Logged in UID:", user.uid);
-      const role = await getUserRole(user.uid);
-      console.log("Fetched role:", role);
+      const firebaseUser = await loginUser(email, password);
+      const profile = await getUserProfile(firebaseUser.uid);
 
-      if (!role) {
+      if (!profile?.role) {
         setError('Unable to determine user role.');
         return;
       }
 
+      const displayName =
+        profile.name ||
+        firebaseUser.displayName?.trim() ||
+        firebaseUser.email?.split('@')[0] ||
+        'User';
+
       login({
-        id: user.uid,
-        name: user.displayName || 'User',
-        email: user.email || email,
-        role,
+        id: firebaseUser.uid,
+        name: displayName,
+        email: profile.email || firebaseUser.email || email,
+        role: profile.role,
       });
 
+      const redirect = searchParams.get('redirect');
+      if (isSafeRedirectPath(redirect)) {
+        navigate(redirect!, { replace: true });
+        return;
+      }
+
       if (role === 'admin') {
-        navigate('/admin/dashboard');
+        navigate('/admin/dashboard', { replace: true });
       } else if (role === 'owner') {
-        navigate('/owner/dashboard');
+        navigate('/owner/dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     } catch (error) {
       setError((error as Error).message || 'Login failed.');
@@ -156,7 +175,9 @@ export default function LoginPage() {
 
           <motion.p variants={fadeInUp} className="text-center text-sm text-muted-foreground mt-6">
             Don't have an account?{' '}
-            <Link to="/signup" className="text-primary hover:underline font-medium">Sign up</Link>
+            <Link to={`/signup${searchParams.get('redirect') ? `?redirect=${encodeURIComponent(searchParams.get('redirect')!)}` : ''}`} className="text-primary hover:underline font-medium">
+              Sign up
+            </Link>
           </motion.p>
         </motion.div>
       </div>

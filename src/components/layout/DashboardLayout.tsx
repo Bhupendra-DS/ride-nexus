@@ -15,7 +15,7 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutProps) => {
   const location = useLocation();
-  const { user, logout } = useAuth();
+  const { user, logout, getDashboardPath } = useAuth();
   const navigate = useNavigate();
 
   return (
@@ -23,7 +23,7 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
       {/* Top bar with horizontal nav (classic style) */}
       <header className="sticky top-0 z-40 h-16 nav-blur flex items-center justify-between px-6">
         <div className="flex items-center gap-6">
-          <Link to="/" className="flex items-center gap-2 mr-2">
+          <Link to={user ? getDashboardPath() : '/'} className="flex items-center gap-2 mr-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-primary flex items-center justify-center shadow-glow">
               <span className="font-display font-bold text-sm text-primary-foreground">RN</span>
             </div>
@@ -70,9 +70,9 @@ export const DashboardLayout = ({ children, navItems, title }: DashboardLayoutPr
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => {
-              logout();
-              navigate('/');
+            onClick={async () => {
+              await logout();
+              navigate('/', { replace: true });
             }}
             className="text-muted-foreground hover:text-foreground gap-1.5"
           >

@@ -15,6 +15,7 @@ import { Car as CarType } from '@/components/shared/CarCard';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
 import { useAuth } from '@/hooks/useAuth';
 import { formatCurrency } from '@/utils/formatCurrency';
+import { buildLoginRedirect } from '@/utils/routes';
 import { FAQSection } from '@/components/shared/FAQSection';
 
 gsap.registerPlugin(ScrollTrigger);
@@ -168,7 +169,13 @@ export default function LandingPage() {
                 size="lg"
                 variant="outline"
                 className="h-12 px-8 border-border hover:bg-muted text-base font-medium"
-                onClick={() => navigate('/owner/dashboard')}
+                onClick={() => {
+                  if (isLoggedIn && user?.role === 'owner') {
+                    navigate('/owner/dashboard');
+                  } else {
+                    navigate('/owner-signup');
+                  }
+                }}
               >
                 <Car size={16} className="mr-2" />
                 List Your Car
@@ -248,7 +255,7 @@ export default function LandingPage() {
                   car={car}
                   onBook={() => {
                     if (!isLoggedIn || user?.role !== 'user') {
-                      navigate('/login');
+                      navigate(buildLoginRedirect('/'));
                     } else {
                       setSelectedCar(car);
                     }

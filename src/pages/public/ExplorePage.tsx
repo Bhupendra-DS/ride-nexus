@@ -1,24 +1,28 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Search, Filter, MapPin } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Navbar } from '@/components/shared/Navbar';
 import { CarCard } from '@/components/shared/CarCard';
 import { BookingModal } from '@/components/shared/BookingModal';
 import { Car } from '@/components/shared/CarCard';
+import { ExploreCarFilters } from '@/components/shared/ExploreCarFilters';
 import { staggerContainer, fadeInUp } from '@/lib/motion';
 import { subscribeApprovedCars } from '@/services/carService';
 import { useAuth } from '@/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
-
-const cities = ['All Cities', 'San Francisco', 'Los Angeles', 'New York', 'Miami', 'Chicago', 'Las Vegas'];
-const fuelTypes = ['All', 'Electric', 'Petrol', 'Hybrid'];
+import { buildLoginRedirect } from '@/utils/routes';
+import {
+  filterCars,
+  buildCityOptions,
+  buildFuelOptions,
+  buildTransmissionOptions,
+} from '@/utils/carExploreFilters';
 
 export default function ExplorePage() {
   const [search, setSearch] = useState('');
   const [selectedCity, setSelectedCity] = useState('All Cities');
   const [selectedFuel, setSelectedFuel] = useState('All');
+  const [selectedTransmission, setSelectedTransmission] = useState('All');
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
   const [selectedCar, setSelectedCar] = useState<Car | null>(null);
   const [cars, setCars] = useState<any[]>([]);
   const { isLoggedIn, user } = useAuth();
@@ -29,12 +33,40 @@ export default function ExplorePage() {
     return () => unsubscribe();
   }, []);
 
-  const filtered = cars.filter((car) => {
-    const matchSearch = `${car.brand} ${car.model}`.toLowerCase().includes(search.toLowerCase());
-    const matchCity = selectedCity === 'All Cities' || car.city === selectedCity;
-    const matchFuel = selectedFuel === 'All' || car.fuelType === selectedFuel;
-    return matchSearch && matchCity && matchFuel;
-  });
+  const cityOptions = useMemo(() => buildCityOptions(cars), [cars]);
+  const fuelOptions = useMemo(() => buildFuelOptions(cars), [cars]);
+  const transmissionOptions = useMemo(() => buildTransmissionOptions(cars), [cars]);
+
+  // Keep selections valid when live data adds/removes values
+  useEffect(() => {
+    if (!cityOptions.includes(selectedCity)) setSelectedCity('All Cities');
+  }, [cityOptions, selectedCity]);
+
+  useEffect(() => {
+    if (!fuelOptions.includes(selectedFuel)) setSelectedFuel('All');
+  }, [fuelOptions, selectedFuel]);
+
+  useEffect(() => {
+    if (!transmissionOptions.includes(selectedTransmission)) setSelectedTransmission('All');
+  }, [transmissionOptions, selectedTransmission]);
+
+  const filtered = useMemo(
+    () =>
+      filterCars(cars, {
+        search,
+        city: selectedCity,
+        fuel: selectedFuel,
+        transmission: selectedTransmission,
+      }),
+    [cars, search, selectedCity, selectedFuel, selectedTransmission],
+  );
+
+  const clearFilters = () => {
+    setSearch('');
+    setSelectedCity('All Cities');
+    setSelectedFuel('All');
+    setSelectedTransmission('All');
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -55,47 +87,35 @@ export default function ExplorePage() {
             </motion.div>
           </motion.div>
 
-          {/* Filters */}
-          <div className="bg-card rounded-xl shadow-md p-4 mb-8">
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1 relative">
-                <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  placeholder="Search by brand or model..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="pl-9 bg-input border-0 h-11"
-                />
-              </div>
-              <div className="flex gap-3 flex-wrap">
-                <div className="relative">
-                  <MapPin size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                  <select
-                    value={selectedCity}
-                    onChange={(e) => setSelectedCity(e.target.value)}
-                    className="pl-8 pr-8 h-11 bg-input rounded-lg text-sm text-foreground border-0 focus:ring-2 focus:ring-ring outline-none cursor-pointer appearance-none"
-                  >
-                    {cities.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </div>
-                <select
-                  value={selectedFuel}
-                  onChange={(e) => setSelectedFuel(e.target.value)}
-                  className="px-4 h-11 bg-input rounded-lg text-sm text-foreground border-0 focus:ring-2 focus:ring-ring outline-none cursor-pointer"
-                >
-                  {fuelTypes.map((f) => <option key={f} value={f}>{f}</option>)}
-                </select>
-                <Button variant="outline" size="sm" className="h-11 border-border hover:bg-muted gap-2">
-                  <Filter size={14} /> Filters
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ExploreCarFilters
+            containerClassName="mb-8"
+            search={search}
+            onSearchChange={setSearch}
+            cityOptions={cityOptions}
+            selectedCity={selectedCity}
+            onCityChange={setSelectedCity}
+            fuelOptions={fuelOptions}
+            selectedFuel={selectedFuel}
+            onFuelChange={setSelectedFuel}
+            transmissionOptions={transmissionOptions}
+            selectedTransmission={selectedTransmission}
+            onTransmissionChange={setSelectedTransmission}
+            showAdvanced={showAdvancedFilters}
+            onToggleAdvanced={() => setShowAdvancedFilters((v) => !v)}
+            onClearFilters={clearFilters}
+          />
 
           {/* Results */}
           <div className="flex items-center justify-between mb-6">
             <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span> vehicles available
+              <span className="font-semibold text-foreground tabular-nums">{filtered.length}</span>{' '}
+              vehicles available
+              {cars.length > 0 && filtered.length !== cars.length && (
+                <span className="text-muted-foreground/80">
+                  {' '}
+                  (of {cars.length} listed)
+                </span>
+              )}
             </p>
           </div>
 
@@ -112,7 +132,7 @@ export default function ExplorePage() {
                     car={car}
                     onBook={() => {
                       if (!isLoggedIn || user?.role !== 'user') {
-                        navigate('/login');
+                        navigate(buildLoginRedirect('/explore'));
                       } else {
                         setSelectedCar(car);
                       }
@@ -124,6 +144,9 @@ export default function ExplorePage() {
           ) : (
             <div className="py-24 text-center">
               <p className="text-muted-foreground text-lg">No vehicles match your filters.</p>
+              {cars.length === 0 && (
+                <p className="text-sm text-muted-foreground mt-2">No approved cars are listed yet.</p>
+              )}
             </div>
           )}
         </div>

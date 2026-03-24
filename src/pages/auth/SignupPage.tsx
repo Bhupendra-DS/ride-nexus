@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Car } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserRole } from '@/store/authStore';
 import { signupUser } from '@/services/authService';
 import { fadeInUp, staggerContainer, buttonHover } from '@/lib/motion';
+import { isSafeRedirectPath } from '@/utils/routes';
 
 export default function SignupPage() {
   const [name, setName] = useState('');
@@ -16,8 +17,22 @@ export default function SignupPage() {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('user');
   const [showPass, setShowPass] = useState(false);
-  const { login } = useAuth();
+  const { login, isLoggedIn, user, initialized, getDashboardPath } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const q = new URLSearchParams(location.search);
+    if (location.pathname === '/owner-signup' || q.get('role') === 'owner') {
+      setRole('owner');
+    }
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!initialized || !isLoggedIn || !user) return;
+    navigate(getDashboardPath(), { replace: true });
+  }, [initialized, isLoggedIn, user, navigate, getDashboardPath]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -32,7 +47,13 @@ export default function SignupPage() {
         role,
       });
 
-      navigate(role === 'owner' ? '/owner/dashboard' : '/dashboard');
+      const redirect = searchParams.get('redirect');
+      if (isSafeRedirectPath(redirect)) {
+        navigate(redirect!, { replace: true });
+        return;
+      }
+
+      navigate(role === 'owner' ? '/owner/dashboard' : '/dashboard', { replace: true });
     } catch (error) {
       console.error((error as Error).message);
     }
@@ -176,7 +197,12 @@ export default function SignupPage() {
 
           <motion.p variants={fadeInUp} className="text-center text-sm text-muted-foreground mt-6">
             Already have an account?{' '}
-            <Link to="/login" className="text-primary hover:underline font-medium">Sign in</Link>
+            <Link
+              to={`/login${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+              className="text-primary hover:underline font-medium"
+            >
+              Sign in
+            </Link>
           </motion.p>
         </motion.div>
       </div>

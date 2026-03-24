@@ -92,7 +92,10 @@ export const Navbar = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={logout}
+                  onClick={async () => {
+                    await logout();
+                    navigate('/', { replace: true });
+                  }}
                   className="border-border hover:bg-muted"
                 >
                   Logout
@@ -175,7 +178,11 @@ export const Navbar = () => {
                     </button>
                     <button
                       className="px-4 py-3 rounded-lg text-sm font-medium text-destructive hover:bg-muted/50 transition-colors text-left"
-                      onClick={() => { logout(); setMobileOpen(false); }}
+                      onClick={async () => {
+                        await logout();
+                        setMobileOpen(false);
+                        navigate('/', { replace: true });
+                      }}
                     >
                       Logout
                     </button>

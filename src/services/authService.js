@@ -1,5 +1,9 @@
 import { auth, db } from "./firebase";
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from "firebase/auth";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+} from "firebase/auth";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 
 export const signupUser = async (name, email, password, role) => {
@@ -33,14 +37,31 @@ export const loginUser = async (email, password) => {
   return userCredential.user;
 };
 
-export const getUserRole = async (uid) => {
+/**
+ * Full profile from Firestore (name + role + email).
+ * Used so UI shows the name saved at signup, not only Firebase Auth displayName.
+ */
+export const getUserProfile = async (uid) => {
   const docRef = doc(db, "users", uid);
   const docSnap = await getDoc(docRef);
 
-  if (docSnap.exists()) {
-    return docSnap.data().role;
+  if (!docSnap.exists()) {
+    return null;
   }
 
-  return null;
+  const d = docSnap.data();
+  return {
+    role: d.role,
+    name: typeof d.name === "string" ? d.name.trim() : "",
+    email: typeof d.email === "string" ? d.email : "",
+  };
 };
+
+export const getUserRole = async (uid) => {
+  const profile = await getUserProfile(uid);
+  return profile?.role ?? null;
+};
+
+/** Ends Firebase session (clears persisted auth). Always call when logging out. */
+export const signOutUser = () => signOut(auth);
 

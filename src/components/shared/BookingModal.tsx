@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { Car } from './CarCard';
 import { modalVariants, overlayVariants } from '@/lib/motion';
 import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { buildLoginRedirect } from '@/utils/routes';
 import { createBooking } from '@/services/bookingService';
 import { formatCurrency } from '@/utils/formatCurrency';
 
@@ -26,6 +27,7 @@ export const BookingModal = ({ car, onClose }: BookingModalProps) => {
   const [submitting, setSubmitting] = useState(false);
   const { user, isLoggedIn } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   if (!car) return null;
 
@@ -35,7 +37,7 @@ export const BookingModal = ({ car, onClose }: BookingModalProps) => {
 
   const handleConfirm = async () => {
     if (!isLoggedIn || !user) {
-      navigate('/login');
+      navigate(buildLoginRedirect(location.pathname + location.search));
       return;
     }
 

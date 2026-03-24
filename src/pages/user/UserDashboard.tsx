@@ -19,6 +19,13 @@ const navItems = [
   { label: 'Profile', href: '/dashboard/profile', icon: <User size={16} /> },
 ];
 
+function greetingFirstName(name: string | undefined, email: string | undefined) {
+  const n = name?.trim();
+  if (n) return n.split(/\s+/)[0];
+  const local = email?.split('@')[0];
+  return local || 'there';
+}
+
 export default function UserDashboard() {
   const { user } = useAuth();
   const [selectedCar, setSelectedCar] = useState<CarType | null>(null);
@@ -71,7 +78,9 @@ export default function UserDashboard() {
       <motion.div variants={staggerContainer} initial="hidden" animate="visible" className="space-y-8 pb-20 md:pb-0">
         {/* Welcome */}
         <motion.div variants={fadeInUp}>
-          <h1 className="font-display text-2xl font-bold">Welcome back, {user?.name?.split(' ')[0]} 👋</h1>
+          <h1 className="font-display text-2xl font-bold">
+            Welcome back, {greetingFirstName(user?.name, user?.email)} 👋
+          </h1>
           <p className="text-muted-foreground mt-1">Find your next drive or manage your bookings.</p>
         </motion.div>
 

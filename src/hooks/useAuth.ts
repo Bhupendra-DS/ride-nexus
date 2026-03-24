@@ -1,20 +1,35 @@
+import { useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { signOutUser } from '@/services/authService';
+import { getDashboardPathForRole } from '@/utils/routes';
 
 export const useAuth = () => {
-  const { user, isLoggedIn, initialized, login, logout } = useAuthStore();
+  const { user, isLoggedIn, initialized, login, logout: clearStore } = useAuthStore();
 
-  // Treat user as logged in only after Firebase auth has been checked at least once.
   const effectiveLoggedIn = initialized && isLoggedIn;
 
-  const getDashboardPath = () => {
+  const getDashboardPath = useCallback(() => {
     if (!user) return '/login';
-    switch (user.role) {
-      case 'admin': return '/admin/dashboard';
-      case 'owner': return '/owner/dashboard';
-      case 'user': return '/dashboard';
-      default: return '/dashboard';
-    }
-  };
+    return getDashboardPathForRole(user.role);
+  }, [user]);
 
-  return { user, isLoggedIn: effectiveLoggedIn, login, logout, getDashboardPath };
+  /** Clears Firebase session and local mirror state (production-safe). */
+  const logout = useCallback(async () => {
+    try {
+      await signOutUser();
+    } catch {
+      // Still clear UI state if Firebase signOut fails (e.g. offline)
+    } finally {
+      clearStore();
+    }
+  }, [clearStore]);
+
+  return {
+    user,
+    isLoggedIn: effectiveLoggedIn,
+    initialized,
+    login,
+    logout,
+    getDashboardPath,
+  };
 };
